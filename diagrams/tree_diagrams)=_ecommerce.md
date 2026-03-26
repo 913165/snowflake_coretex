@@ -1,3 +1,4 @@
+```
 ECOMMERCE_DB
 │
 ├── USERS_SCHEMA
@@ -22,3 +23,4 @@ ECOMMERCE_DB
 │
 └── SOCIAL_SCHEMA
       └── reviews
+```

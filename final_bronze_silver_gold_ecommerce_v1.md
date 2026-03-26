@@ -1,13 +1,12 @@
-Below are **ready-to-use prompts** you can paste into **Snowflake Cortex Analyst / ChatGPT / any AI assistant** to generate your **complete Ecommerce Bronze → Silver → Gold demo**.
+Got it 👍 — you want a **clean Markdown file** where **every prompt is wrapped in triple backticks** so you can directly copy/paste into your course material.
 
-I have structured them in **teaching order**, so students clearly see the pipeline transformation.
+Here is the **updated version (proper MD format)**:
 
-```
+---
 
 # MASTER PROMPT (Create Full Project)
 
-Use this first:
-
+```text
 Create a complete Snowflake demo project for an Ecommerce system demonstrating Bronze, Silver and Gold data layers.
 
 Use ONE database named ECOMMERCE_DB.
@@ -35,7 +34,6 @@ SILVER_SOCIAL_SCHEMA
 GOLD_SOCIAL_SCHEMA
 
 Requirements:
-
 1. Bronze layer should contain raw tables with duplicates and inconsistent formats
 2. Silver layer should contain cleaned and normalized tables
 3. Gold layer should contain aggregated business tables
@@ -45,11 +43,13 @@ Requirements:
 7. Provide transformation SQL from silver to gold
 8. Keep data simple for demo purposes
 9. Use realistic ecommerce fields
-
 ```
+
+---
 
 # STEP 1 PROMPT — Create Database and Schemas
 
+```text
 Generate Snowflake SQL to create database ECOMMERCE_DB and all schemas:
 
 BRONZE_USERS_SCHEMA
@@ -71,11 +71,13 @@ GOLD_SHOPPING_SCHEMA
 BRONZE_SOCIAL_SCHEMA
 SILVER_SOCIAL_SCHEMA
 GOLD_SOCIAL_SCHEMA
+```
 
 ---
 
 # STEP 2 PROMPT — Bronze Tables (Raw Data)
 
+```text
 Create Bronze layer tables for Ecommerce system with raw messy structure.
 
 Include duplicates and inconsistent formats.
@@ -106,11 +108,13 @@ BRONZE_SOCIAL_SCHEMA:
 reviews_raw
 
 Provide CREATE TABLE SQL.
+```
 
 ---
 
 # STEP 3 PROMPT — Insert Raw Data
 
+```text
 Insert sample data into bronze tables with following issues:
 
 duplicate users
@@ -123,11 +127,13 @@ duplicate orders
 Insert 5-10 rows per table.
 
 Keep data realistic for ecommerce.
+```
 
 ---
 
 # STEP 4 PROMPT — Silver Tables (Clean Data)
 
+```text
 Create Silver layer tables for Ecommerce system with cleaned and normalized structure.
 
 Requirements:
@@ -162,11 +168,13 @@ SILVER_SOCIAL_SCHEMA:
 reviews
 
 Provide CREATE TABLE SQL.
+```
 
 ---
 
 # STEP 5 PROMPT — Bronze to Silver Transformation
 
+```text
 Generate SQL to transform Bronze tables into Silver tables.
 
 Perform:
@@ -179,11 +187,13 @@ join related tables
 normalize columns
 
 Provide INSERT INTO SELECT statements.
+```
 
 ---
 
 # STEP 6 PROMPT — Gold Tables (Business Analytics)
 
+```text
 Create Gold layer aggregated tables for ecommerce analytics.
 
 Tables:
@@ -206,11 +216,13 @@ product_rating_summary
 Each table should include aggregated metrics.
 
 Provide CREATE TABLE SQL.
+```
 
 ---
 
 # STEP 7 PROMPT — Silver to Gold Transformation
 
+```text
 Generate SQL queries to populate Gold tables from Silver tables.
 
 Include metrics:
@@ -222,11 +234,13 @@ cart conversion rate
 average product rating
 
 Provide INSERT INTO SELECT statements with GROUP BY.
+```
 
 ---
 
 # STEP 8 PROMPT — Show Data Flow Explanation
 
+```text
 Explain the flow of data from Bronze to Silver to Gold for Ecommerce system.
 
 Show examples of:
@@ -236,11 +250,13 @@ clean data
 aggregated business data
 
 Explain why each layer is needed.
+```
 
 ---
 
 # STEP 9 PROMPT — Generate Diagram
 
+```text
 Create a simple architecture diagram for Ecommerce Bronze Silver Gold layers.
 
 Show:
@@ -251,26 +267,37 @@ tables
 data flow arrows
 
 Keep diagram simple for teaching.
+```
 
 ---
 
 # STEP 10 PROMPT — Generate Questions for Students
 
+```text
 Create 10 questions for students based on Ecommerce Bronze Silver Gold architecture.
 
 Include conceptual and SQL based questions.
+```
 
 ---
 
-# Recommended Teaching Flow (very effective)
+# Recommended Teaching Flow
 
-1️⃣ create database
-2️⃣ show bronze messy data
-3️⃣ show silver cleaned tables
-4️⃣ show gold analytics
-5️⃣ show SQL transformation
-6️⃣ ask students questions
+```text
+1. Create database
+2. Show bronze messy data
+3. Show silver cleaned tables
+4. Show gold analytics
+5. Show SQL transformation
+6. Ask students questions
+```
 
 ---
 
+If you want next level for your course 🚀
+I can also convert this into:
 
+* downloadable **PDF (ready for Udemy)**
+* **slide deck (PPT)**
+* **GitHub repo structure**
+* **live demo script (what to say while teaching)**

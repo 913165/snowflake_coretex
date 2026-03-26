@@ -8,6 +8,16 @@ A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **
 
 ---
 
+## Setup
+
+```sql
+CREATE DATABASE MOVIE_RATINGS;
+
+CREATE SCHEMA MOVIE_RATINGS.APP;
+```
+
+---
+
 ## Tables (3)
 
 ### MOVIES
@@ -22,6 +32,17 @@ A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **
 | BUDGET_MILLIONS | DECIMAL(6,1) | Production budget in millions USD |
 
 **Sample data:** Inception, The Dark Knight, Parasite, Interstellar, Spider-Man: No Way Home, Everything Everywhere All at Once, Oppenheimer, Barbie, Dune: Part Two, The Godfather
+
+```sql
+CREATE TABLE MOVIE_RATINGS.APP.MOVIES (
+    MOVIE_ID         INT            PRIMARY KEY,
+    TITLE            VARCHAR(100)   NOT NULL,
+    GENRE            VARCHAR(30),
+    RELEASE_YEAR     INT,
+    DIRECTOR         VARCHAR(60),
+    BUDGET_MILLIONS  DECIMAL(6,1)
+);
+```
 
 ```sql
 INSERT INTO MOVIE_RATINGS.APP.MOVIES VALUES
@@ -52,6 +73,16 @@ INSERT INTO MOVIE_RATINGS.APP.MOVIES VALUES
 **8 users** with fun usernames: movie_buff_22, cinephile_uk, nolan_fan, film_critic_99, popcorn_lover, sci_fi_geek, drama_queen, weekend_watcher
 
 ```sql
+CREATE TABLE MOVIE_RATINGS.APP.USERS (
+    USER_ID      INT          PRIMARY KEY,
+    USERNAME     VARCHAR(30)  NOT NULL,
+    AGE          INT,
+    COUNTRY      VARCHAR(30),
+    JOINED_DATE  DATE
+);
+```
+
+```sql
 INSERT INTO MOVIE_RATINGS.APP.USERS VALUES
 (1, 'movie_buff_22',    22, 'USA',       '2023-01-15'),
 (2, 'cinephile_uk',     28, 'UK',        '2022-06-10'),
@@ -77,6 +108,17 @@ INSERT INTO MOVIE_RATINGS.APP.USERS VALUES
 | REVIEW_DATE | DATE | Date of review |
 
 **20 reviews** with realistic comments like "Mind-bending! Watched it 3 times." and "Heath Ledger was iconic."
+
+```sql
+CREATE TABLE MOVIE_RATINGS.APP.REVIEWS (
+    REVIEW_ID    INT           PRIMARY KEY,
+    USER_ID      INT           NOT NULL REFERENCES MOVIE_RATINGS.APP.USERS(USER_ID),
+    MOVIE_ID     INT           NOT NULL REFERENCES MOVIE_RATINGS.APP.MOVIES(MOVIE_ID),
+    RATING       INT           CHECK (RATING BETWEEN 1 AND 10),
+    REVIEW_TEXT  VARCHAR(300),
+    REVIEW_DATE  DATE
+);
+```
 
 ```sql
 INSERT INTO MOVIE_RATINGS.APP.REVIEWS VALUES

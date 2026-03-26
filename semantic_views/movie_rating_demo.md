@@ -161,6 +161,22 @@ USERS ──── REVIEWS ──── MOVIES
 Movies ranked by average rating with review counts.
 
 ```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD AS
+SELECT
+    m.TITLE,
+    m.GENRE,
+    m.DIRECTOR,
+    m.RELEASE_YEAR,
+    COUNT(r.REVIEW_ID)    AS TOTAL_REVIEWS,
+    ROUND(AVG(r.RATING), 1) AS AVG_RATING,
+    MAX(r.RATING)         AS HIGHEST_RATING,
+    MIN(r.RATING)         AS LOWEST_RATING
+FROM MOVIE_RATINGS.APP.MOVIES m
+JOIN MOVIE_RATINGS.APP.REVIEWS r ON m.MOVIE_ID = r.MOVIE_ID
+GROUP BY m.TITLE, m.GENRE, m.DIRECTOR, m.RELEASE_YEAR;
+```
+
+```sql
 SELECT * FROM MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD ORDER BY AVG_RATING DESC;
 ```
 
@@ -179,6 +195,21 @@ SELECT * FROM MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD ORDER BY AVG_RATING DESC;
 Per-user review summary showing engagement.
 
 ```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_USER_ACTIVITY AS
+SELECT
+    u.USERNAME,
+    u.AGE,
+    u.COUNTRY,
+    COUNT(r.REVIEW_ID)      AS REVIEWS_WRITTEN,
+    ROUND(AVG(r.RATING), 1) AS AVG_RATING_GIVEN,
+    MIN(r.REVIEW_DATE)      AS FIRST_REVIEW,
+    MAX(r.REVIEW_DATE)      AS LAST_REVIEW
+FROM MOVIE_RATINGS.APP.USERS u
+JOIN MOVIE_RATINGS.APP.REVIEWS r ON u.USER_ID = r.USER_ID
+GROUP BY u.USERNAME, u.AGE, u.COUNTRY;
+```
+
+```sql
 SELECT * FROM MOVIE_RATINGS.APP.V_USER_ACTIVITY ORDER BY REVIEWS_WRITTEN DESC;
 ```
 
@@ -194,6 +225,23 @@ SELECT * FROM MOVIE_RATINGS.APP.V_USER_ACTIVITY ORDER BY REVIEWS_WRITTEN DESC;
 
 ### V_REVIEW_DETAILS
 Enriched view joining all 3 tables — every review with movie + user info.
+
+```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_REVIEW_DETAILS AS
+SELECT
+    r.REVIEW_ID,
+    u.USERNAME,
+    u.COUNTRY,
+    m.TITLE      AS MOVIE_TITLE,
+    m.GENRE,
+    m.DIRECTOR,
+    r.RATING,
+    r.REVIEW_TEXT,
+    r.REVIEW_DATE
+FROM MOVIE_RATINGS.APP.REVIEWS r
+JOIN MOVIE_RATINGS.APP.USERS   u ON r.USER_ID  = u.USER_ID
+JOIN MOVIE_RATINGS.APP.MOVIES  m ON r.MOVIE_ID = m.MOVIE_ID;
+```
 
 ```sql
 SELECT * FROM MOVIE_RATINGS.APP.V_REVIEW_DETAILS ORDER BY REVIEW_DATE DESC;
@@ -216,6 +264,76 @@ SELECT * FROM MOVIE_RATINGS.APP.V_REVIEW_DETAILS ORDER BY REVIEW_DATE DESC;
 ## Semantic View (1) — The Star of the Demo
 
 ### SV_MOVIE_ANALYTICS
+
+```sql
+CREATE OR REPLACE SEMANTIC VIEW MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+  TABLES (
+    movies  AS MOVIE_RATINGS.APP.MOVIES
+      PRIMARY KEY (MOVIE_ID)
+      COMMENT = 'Movies table with title, genre, director, and budget',
+    users   AS MOVIE_RATINGS.APP.USERS
+      PRIMARY KEY (USER_ID)
+      COMMENT = 'Users who write reviews',
+    reviews AS MOVIE_RATINGS.APP.REVIEWS
+      PRIMARY KEY (REVIEW_ID)
+      COMMENT = 'User reviews and ratings for movies'
+  )
+  RELATIONSHIPS (
+    reviews_to_movies AS
+      reviews (MOVIE_ID) REFERENCES movies,
+    reviews_to_users  AS
+      reviews (USER_ID)  REFERENCES users
+  )
+  FACTS (
+    reviews.rating_value AS RATING
+      COMMENT = 'Rating given by user (1-10 scale)',
+    movies.budget        AS BUDGET_MILLIONS
+      COMMENT = 'Production budget in millions USD'
+  )
+  DIMENSIONS (
+    movies.title          AS TITLE
+      WITH SYNONYMS = ('movie name', 'film')
+      COMMENT = 'Title of the movie',
+    movies.genre          AS GENRE
+      WITH SYNONYMS = ('category', 'type')
+      COMMENT = 'Movie genre',
+    movies.director       AS DIRECTOR
+      WITH SYNONYMS = ('filmmaker', 'directed by')
+      COMMENT = 'Director',
+    movies.release_year   AS RELEASE_YEAR
+      WITH SYNONYMS = ('year', 'released')
+      COMMENT = 'Release year',
+    users.username        AS USERNAME
+      WITH SYNONYMS = ('user', 'reviewer')
+      COMMENT = 'Reviewer name',
+    users.country         AS COUNTRY
+      WITH SYNONYMS = ('location', 'region')
+      COMMENT = 'User country',
+    users.age             AS AGE
+      COMMENT = 'User age',
+    reviews.review_date   AS REVIEW_DATE
+      WITH SYNONYMS = ('date', 'when reviewed')
+      COMMENT = 'Review submission date',
+    reviews.review_text   AS REVIEW_TEXT
+      WITH SYNONYMS = ('comment', 'feedback')
+      COMMENT = 'Review content'
+  )
+  METRICS (
+    reviews.avg_rating     AS AVG(RATING)
+      WITH SYNONYMS = ('average score', 'mean rating')
+      COMMENT = 'Average rating across reviews',
+    reviews.total_reviews  AS COUNT(REVIEW_ID)
+      WITH SYNONYMS = ('review count', 'number of reviews')
+      COMMENT = 'Total number of reviews',
+    reviews.highest_rating AS MAX(RATING)
+      COMMENT = 'Highest rating received',
+    reviews.lowest_rating  AS MIN(RATING)
+      COMMENT = 'Lowest rating received',
+    movies.avg_budget      AS AVG(BUDGET_MILLIONS)
+      COMMENT = 'Average production budget in millions'
+  )
+  COMMENT = 'Semantic view for movie ratings analytics - enables Cortex Analyst natural language queries';
+```
 
 A **semantic view** adds business meaning on top of raw tables. It defines:
 - **Facts** — measurable values (rating, budget)

@@ -2,7 +2,7 @@ Below are **ready-to-use prompts** you can paste into **Snowflake Cortex Analyst
 
 I have structured them in **teaching order**, so students clearly see the pipeline transformation.
 
----
+```
 
 # MASTER PROMPT (Create Full Project)
 
@@ -46,7 +46,7 @@ Requirements:
 8. Keep data simple for demo purposes
 9. Use realistic ecommerce fields
 
----
+```
 
 # STEP 1 PROMPT — Create Database and Schemas
 

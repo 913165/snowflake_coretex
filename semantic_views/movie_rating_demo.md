@@ -23,6 +23,22 @@ A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **
 
 **Sample data:** Inception, The Dark Knight, Parasite, Interstellar, Spider-Man: No Way Home, Everything Everywhere All at Once, Oppenheimer, Barbie, Dune: Part Two, The Godfather
 
+```sql
+INSERT INTO MOVIE_RATINGS.APP.MOVIES VALUES
+(1,  'Inception',                           'Sci-Fi',  2010, 'Christopher Nolan',     160.0),
+(2,  'The Dark Knight',                     'Action',  2008, 'Christopher Nolan',     185.0),
+(3,  'Parasite',                            'Thriller',2019, 'Bong Joon-ho',           11.4),
+(4,  'Interstellar',                        'Sci-Fi',  2014, 'Christopher Nolan',     165.0),
+(5,  'Spider-Man: No Way Home',             'Action',  2021, 'Jon Watts',             200.0),
+(6,  'Everything Everywhere All at Once',   'Comedy',  2022, 'Daniel Kwan',            25.0),
+(7,  'Oppenheimer',                         'Drama',   2023, 'Christopher Nolan',     100.0),
+(8,  'Barbie',                              'Comedy',  2023, 'Greta Gerwig',          145.0),
+(9,  'Dune: Part Two',                      'Sci-Fi',  2024, 'Denis Villeneuve',      190.0),
+(10, 'The Godfather',                       'Drama',   1972, 'Francis Ford Coppola',    6.0);
+```
+
+---
+
 ### USERS
 
 | Column | Type | Description |
@@ -34,6 +50,20 @@ A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **
 | JOINED_DATE | DATE | Registration date |
 
 **8 users** with fun usernames: movie_buff_22, cinephile_uk, nolan_fan, film_critic_99, popcorn_lover, sci_fi_geek, drama_queen, weekend_watcher
+
+```sql
+INSERT INTO MOVIE_RATINGS.APP.USERS VALUES
+(1, 'movie_buff_22',    22, 'USA',       '2023-01-15'),
+(2, 'cinephile_uk',     28, 'UK',        '2022-06-10'),
+(3, 'nolan_fan',        19, 'India',     '2023-08-20'),
+(4, 'film_critic_99',   35, 'USA',       '2021-03-01'),
+(5, 'popcorn_lover',    24, 'Canada',    '2023-11-05'),
+(6, 'sci_fi_geek',      31, 'Australia', '2022-09-12'),
+(7, 'drama_queen',      27, 'UK',        '2024-01-20'),
+(8, 'weekend_watcher',  20, 'India',     '2024-03-10');
+```
+
+---
 
 ### REVIEWS
 
@@ -47,6 +77,30 @@ A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **
 | REVIEW_DATE | DATE | Date of review |
 
 **20 reviews** with realistic comments like "Mind-bending! Watched it 3 times." and "Heath Ledger was iconic."
+
+```sql
+INSERT INTO MOVIE_RATINGS.APP.REVIEWS VALUES
+(1,  1, 1,  9,  'Mind-bending! Watched it 3 times.',        '2024-01-10'),
+(2,  1, 7,  10, 'Cillian Murphy was phenomenal.',           '2024-02-15'),
+(3,  2, 3,  10, 'Absolute masterpiece. Deserved every Oscar.','2023-05-20'),
+(4,  2, 10, 9,  'A timeless classic.',                      '2023-07-01'),
+(5,  3, 1,  10, 'Nolan is a genius!',                       '2024-03-05'),
+(6,  3, 4,  9,  'Made me cry. Hans Zimmer killed it.',      '2024-03-06'),
+(7,  3, 2,  10, 'Best superhero movie ever made.',          '2024-03-07'),
+(8,  4, 6,  8,  'Creative and weird. Loved it.',            '2024-01-25'),
+(9,  4, 8,  7,  'Fun but overhyped.',                       '2024-02-01'),
+(10, 4, 3,  9,  'Brilliant social commentary.',             '2024-02-10'),
+(11, 5, 5,  8,  'Nostalgia overload! All 3 Spider-Men!',   '2024-04-01'),
+(12, 5, 9,  9,  'Better than Part One.',                    '2024-04-15'),
+(13, 6, 1,  8,  'Great concept, slightly confusing.',       '2024-05-01'),
+(14, 6, 4,  10, 'Best space movie ever.',                   '2024-05-02'),
+(15, 6, 9,  10, 'Visually stunning. Chalamet nailed it.',   '2024-05-10'),
+(16, 7, 7,  9,  'Heavy but important film.',                '2024-06-01'),
+(17, 7, 10, 10, 'Nothing beats The Godfather.',             '2024-06-05'),
+(18, 7, 8,  6,  'Entertaining but shallow.',                '2024-06-10'),
+(19, 8, 2,  9,  'Heath Ledger was iconic.',                 '2024-07-01'),
+(20, 8, 5,  7,  'Good fan service but messy plot.',         '2024-07-10');
+```
 
 ---
 

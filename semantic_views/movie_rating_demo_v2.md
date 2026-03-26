@@ -1,0 +1,522 @@
+# Movie Ratings Demo — Views & Semantic Views
+
+## Overview
+
+A simple, student-friendly Snowflake demo with **3 tables**, **3 views**, and **1 semantic view** — designed to teach the difference between regular views and semantic views using popular movies everyone knows.
+
+**Database:** `MOVIE_RATINGS.APP`
+
+---
+
+## Setup
+
+```sql
+CREATE DATABASE MOVIE_RATINGS;
+
+CREATE SCHEMA MOVIE_RATINGS.APP;
+```
+
+---
+
+## Tables (3)
+
+### MOVIES
+
+| Column | Type | Description |
+|--------|------|-------------|
+| MOVIE_ID | INT (PK) | Unique movie identifier |
+| TITLE | VARCHAR(100) | Movie title |
+| GENRE | VARCHAR(30) | Genre (Sci-Fi, Action, Comedy, Drama, Thriller) |
+| RELEASE_YEAR | INT | Year released |
+| DIRECTOR | VARCHAR(60) | Director name |
+| BUDGET_MILLIONS | DECIMAL(6,1) | Production budget in millions USD |
+
+**Sample data:** Inception, The Dark Knight, Parasite, Interstellar, Spider-Man: No Way Home, Everything Everywhere All at Once, Oppenheimer, Barbie, Dune: Part Two, The Godfather
+
+```sql
+CREATE TABLE MOVIE_RATINGS.APP.MOVIES (
+    MOVIE_ID         INT            PRIMARY KEY,
+    TITLE            VARCHAR(100)   NOT NULL,
+    GENRE            VARCHAR(30),
+    RELEASE_YEAR     INT,
+    DIRECTOR         VARCHAR(60),
+    BUDGET_MILLIONS  DECIMAL(6,1)
+);
+```
+
+```sql
+INSERT INTO MOVIE_RATINGS.APP.MOVIES VALUES
+(1,  'Inception',                           'Sci-Fi',  2010, 'Christopher Nolan',     160.0),
+(2,  'The Dark Knight',                     'Action',  2008, 'Christopher Nolan',     185.0),
+(3,  'Parasite',                            'Thriller',2019, 'Bong Joon-ho',           11.4),
+(4,  'Interstellar',                        'Sci-Fi',  2014, 'Christopher Nolan',     165.0),
+(5,  'Spider-Man: No Way Home',             'Action',  2021, 'Jon Watts',             200.0),
+(6,  'Everything Everywhere All at Once',   'Comedy',  2022, 'Daniel Kwan',            25.0),
+(7,  'Oppenheimer',                         'Drama',   2023, 'Christopher Nolan',     100.0),
+(8,  'Barbie',                              'Comedy',  2023, 'Greta Gerwig',          145.0),
+(9,  'Dune: Part Two',                      'Sci-Fi',  2024, 'Denis Villeneuve',      190.0),
+(10, 'The Godfather',                       'Drama',   1972, 'Francis Ford Coppola',    6.0);
+```
+
+---
+
+### USERS
+
+| Column | Type | Description |
+|--------|------|-------------|
+| USER_ID | INT (PK) | Unique user identifier |
+| USERNAME | VARCHAR(30) | Display name |
+| AGE | INT | User age |
+| COUNTRY | VARCHAR(30) | Country (USA, UK, India, Canada, Australia) |
+| JOINED_DATE | DATE | Registration date |
+
+**8 users** with fun usernames: movie_buff_22, cinephile_uk, nolan_fan, film_critic_99, popcorn_lover, sci_fi_geek, drama_queen, weekend_watcher
+
+```sql
+CREATE TABLE MOVIE_RATINGS.APP.USERS (
+    USER_ID      INT          PRIMARY KEY,
+    USERNAME     VARCHAR(30)  NOT NULL,
+    AGE          INT,
+    COUNTRY      VARCHAR(30),
+    JOINED_DATE  DATE
+);
+```
+
+```sql
+INSERT INTO MOVIE_RATINGS.APP.USERS VALUES
+(1, 'movie_buff_22',    22, 'USA',       '2023-01-15'),
+(2, 'cinephile_uk',     28, 'UK',        '2022-06-10'),
+(3, 'nolan_fan',        19, 'India',     '2023-08-20'),
+(4, 'film_critic_99',   35, 'USA',       '2021-03-01'),
+(5, 'popcorn_lover',    24, 'Canada',    '2023-11-05'),
+(6, 'sci_fi_geek',      31, 'Australia', '2022-09-12'),
+(7, 'drama_queen',      27, 'UK',        '2024-01-20'),
+(8, 'weekend_watcher',  20, 'India',     '2024-03-10');
+```
+
+---
+
+### REVIEWS
+
+| Column | Type | Description |
+|--------|------|-------------|
+| REVIEW_ID | INT (PK) | Unique review identifier |
+| USER_ID | INT (FK) | References USERS |
+| MOVIE_ID | INT (FK) | References MOVIES |
+| RATING | INT | Rating on 1-10 scale |
+| REVIEW_TEXT | VARCHAR(300) | Written review |
+| REVIEW_DATE | DATE | Date of review |
+
+**20 reviews** with realistic comments like "Mind-bending! Watched it 3 times." and "Heath Ledger was iconic."
+
+```sql
+CREATE TABLE MOVIE_RATINGS.APP.REVIEWS (
+    REVIEW_ID    INT           PRIMARY KEY,
+    USER_ID      INT           NOT NULL REFERENCES MOVIE_RATINGS.APP.USERS(USER_ID),
+    MOVIE_ID     INT           NOT NULL REFERENCES MOVIE_RATINGS.APP.MOVIES(MOVIE_ID),
+    RATING       INT           CHECK (RATING BETWEEN 1 AND 10),
+    REVIEW_TEXT  VARCHAR(300),
+    REVIEW_DATE  DATE
+);
+```
+
+```sql
+INSERT INTO MOVIE_RATINGS.APP.REVIEWS VALUES
+(1,  1, 1,  9,  'Mind-bending! Watched it 3 times.',        '2024-01-10'),
+(2,  1, 7,  10, 'Cillian Murphy was phenomenal.',           '2024-02-15'),
+(3,  2, 3,  10, 'Absolute masterpiece. Deserved every Oscar.','2023-05-20'),
+(4,  2, 10, 9,  'A timeless classic.',                      '2023-07-01'),
+(5,  3, 1,  10, 'Nolan is a genius!',                       '2024-03-05'),
+(6,  3, 4,  9,  'Made me cry. Hans Zimmer killed it.',      '2024-03-06'),
+(7,  3, 2,  10, 'Best superhero movie ever made.',          '2024-03-07'),
+(8,  4, 6,  8,  'Creative and weird. Loved it.',            '2024-01-25'),
+(9,  4, 8,  7,  'Fun but overhyped.',                       '2024-02-01'),
+(10, 4, 3,  9,  'Brilliant social commentary.',             '2024-02-10'),
+(11, 5, 5,  8,  'Nostalgia overload! All 3 Spider-Men!',   '2024-04-01'),
+(12, 5, 9,  9,  'Better than Part One.',                    '2024-04-15'),
+(13, 6, 1,  8,  'Great concept, slightly confusing.',       '2024-05-01'),
+(14, 6, 4,  10, 'Best space movie ever.',                   '2024-05-02'),
+(15, 6, 9,  10, 'Visually stunning. Chalamet nailed it.',   '2024-05-10'),
+(16, 7, 7,  9,  'Heavy but important film.',                '2024-06-01'),
+(17, 7, 10, 10, 'Nothing beats The Godfather.',             '2024-06-05'),
+(18, 7, 8,  6,  'Entertaining but shallow.',                '2024-06-10'),
+(19, 8, 2,  9,  'Heath Ledger was iconic.',                 '2024-07-01'),
+(20, 8, 5,  7,  'Good fan service but messy plot.',         '2024-07-10');
+```
+
+---
+
+## Entity Relationships
+
+```
+USERS ──── REVIEWS ──── MOVIES
+ (1:N)       (N:1)
+```
+
+---
+
+## Regular Views (3) — Teaching JOINs & Aggregations
+
+### V_MOVIE_LEADERBOARD
+Movies ranked by average rating with review counts.
+
+```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD AS
+SELECT
+    m.TITLE,
+    m.GENRE,
+    m.DIRECTOR,
+    m.RELEASE_YEAR,
+    COUNT(r.REVIEW_ID) AS TOTAL_REVIEWS,
+    ROUND(AVG(r.RATING), 1) AS AVG_RATING,
+    MAX(r.RATING) AS HIGHEST_RATING,
+    MIN(r.RATING) AS LOWEST_RATING
+FROM MOVIE_RATINGS.APP.MOVIES m
+JOIN MOVIE_RATINGS.APP.REVIEWS r ON m.MOVIE_ID = r.MOVIE_ID
+GROUP BY m.TITLE, m.GENRE, m.DIRECTOR, m.RELEASE_YEAR;
+```
+
+```sql
+SELECT * FROM MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD ORDER BY AVG_RATING DESC;
+```
+
+| Column | Description |
+|--------|-------------|
+| TITLE | Movie title |
+| GENRE | Genre |
+| DIRECTOR | Director |
+| RELEASE_YEAR | Year released |
+| TOTAL_REVIEWS | Number of reviews |
+| AVG_RATING | Average rating (1-10) |
+| HIGHEST_RATING | Max rating received |
+| LOWEST_RATING | Min rating received |
+
+### V_USER_ACTIVITY
+Per-user review summary showing engagement.
+
+```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_USER_ACTIVITY AS
+SELECT
+    u.USERNAME,
+    u.AGE,
+    u.COUNTRY,
+    COUNT(r.REVIEW_ID) AS REVIEWS_WRITTEN,
+    ROUND(AVG(r.RATING), 1) AS AVG_RATING_GIVEN,
+    MIN(r.REVIEW_DATE) AS FIRST_REVIEW,
+    MAX(r.REVIEW_DATE) AS LAST_REVIEW
+FROM MOVIE_RATINGS.APP.USERS u
+JOIN MOVIE_RATINGS.APP.REVIEWS r ON u.USER_ID = r.USER_ID
+GROUP BY u.USERNAME, u.AGE, u.COUNTRY;
+```
+
+```sql
+SELECT * FROM MOVIE_RATINGS.APP.V_USER_ACTIVITY ORDER BY REVIEWS_WRITTEN DESC;
+```
+
+| Column | Description |
+|--------|-------------|
+| USERNAME | User display name |
+| AGE | User age |
+| COUNTRY | User country |
+| REVIEWS_WRITTEN | Total reviews by user |
+| AVG_RATING_GIVEN | How generous/strict the user rates |
+| FIRST_REVIEW | Date of first review |
+| LAST_REVIEW | Date of most recent review |
+
+### V_REVIEW_DETAILS
+Enriched view joining all 3 tables — every review with movie + user info.
+
+```sql
+CREATE OR REPLACE VIEW MOVIE_RATINGS.APP.V_REVIEW_DETAILS AS
+SELECT
+    r.REVIEW_ID,
+    u.USERNAME,
+    u.COUNTRY,
+    m.TITLE AS MOVIE_TITLE,
+    m.GENRE,
+    m.DIRECTOR,
+    r.RATING,
+    r.REVIEW_TEXT,
+    r.REVIEW_DATE
+FROM MOVIE_RATINGS.APP.REVIEWS r
+JOIN MOVIE_RATINGS.APP.USERS u ON r.USER_ID = u.USER_ID
+JOIN MOVIE_RATINGS.APP.MOVIES m ON r.MOVIE_ID = m.MOVIE_ID;
+```
+
+```sql
+SELECT * FROM MOVIE_RATINGS.APP.V_REVIEW_DETAILS ORDER BY REVIEW_DATE DESC;
+```
+
+| Column | Description |
+|--------|-------------|
+| REVIEW_ID | Review identifier |
+| USERNAME | Who wrote it |
+| COUNTRY | Reviewer's country |
+| MOVIE_TITLE | Which movie |
+| GENRE | Movie genre |
+| DIRECTOR | Movie director |
+| RATING | Score given |
+| REVIEW_TEXT | Written feedback |
+| REVIEW_DATE | When reviewed |
+
+---
+
+## Semantic View (1) — The Star of the Demo
+
+### SV_MOVIE_ANALYTICS
+
+```sql
+CREATE OR REPLACE SEMANTIC VIEW MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+
+  TABLES (
+    movies AS MOVIE_RATINGS.APP.MOVIES
+      PRIMARY KEY (MOVIE_ID)
+      COMMENT = 'Movies table with title, genre, director, and budget',
+    users AS MOVIE_RATINGS.APP.USERS
+      PRIMARY KEY (USER_ID)
+      COMMENT = 'Users who write reviews',
+    reviews AS MOVIE_RATINGS.APP.REVIEWS
+      PRIMARY KEY (REVIEW_ID)
+      COMMENT = 'User reviews and ratings for movies'
+  )
+
+  RELATIONSHIPS (
+    reviews_to_movies AS
+      reviews (MOVIE_ID) REFERENCES movies,
+    reviews_to_users AS
+      reviews (USER_ID) REFERENCES users
+  )
+
+  FACTS (
+    reviews.rating_value AS RATING
+      COMMENT = 'Rating given by user (1-10 scale)',
+    movies.budget AS BUDGET_MILLIONS
+      COMMENT = 'Production budget in millions USD'
+  )
+
+  DIMENSIONS (
+    movies.title AS TITLE
+      WITH SYNONYMS = ('movie name', 'film')
+      COMMENT = 'Title of the movie',
+    movies.genre AS GENRE
+      WITH SYNONYMS = ('category', 'type')
+      COMMENT = 'Movie genre',
+    movies.director AS DIRECTOR
+      WITH SYNONYMS = ('filmmaker', 'directed by')
+      COMMENT = 'Director',
+    movies.release_year AS RELEASE_YEAR
+      WITH SYNONYMS = ('year', 'released')
+      COMMENT = 'Release year',
+    users.username AS USERNAME
+      WITH SYNONYMS = ('user', 'reviewer')
+      COMMENT = 'Reviewer name',
+    users.country AS COUNTRY
+      WITH SYNONYMS = ('location', 'region')
+      COMMENT = 'User country',
+    users.age AS AGE
+      COMMENT = 'User age',
+    reviews.review_date AS REVIEW_DATE
+      WITH SYNONYMS = ('date', 'when reviewed')
+      COMMENT = 'Review submission date',
+    reviews.review_text AS REVIEW_TEXT
+      WITH SYNONYMS = ('comment', 'feedback')
+      COMMENT = 'Review content'
+  )
+
+  METRICS (
+    reviews.avg_rating AS AVG(RATING)
+      WITH SYNONYMS = ('average score', 'mean rating')
+      COMMENT = 'Average rating across reviews',
+    reviews.total_reviews AS COUNT(REVIEW_ID)
+      WITH SYNONYMS = ('review count', 'number of reviews')
+      COMMENT = 'Total number of reviews',
+    reviews.highest_rating AS MAX(RATING)
+      COMMENT = 'Highest rating received',
+    reviews.lowest_rating AS MIN(RATING)
+      COMMENT = 'Lowest rating received',
+    movies.avg_budget AS AVG(BUDGET_MILLIONS)
+      COMMENT = 'Average production budget in millions'
+  )
+
+  COMMENT = 'Semantic view for movie ratings analytics';
+```
+
+A **semantic view** adds business meaning on top of raw tables. Unlike a regular view (which is just a saved SQL query), a semantic view describes *what the data means* so that AI tools like Cortex Analyst can understand and query it using natural language.
+
+#### Understanding the Components
+
+**TABLES** — Registers which base tables are part of this semantic view. Each table gets an alias, a primary key, and a comment. Think of it as telling Cortex Analyst: *"These are the tables you can work with."*
+
+```
+TABLES (
+    movies AS MOVIE_RATINGS.APP.MOVIES PRIMARY KEY (MOVIE_ID) ...
+)
+```
+
+**RELATIONSHIPS** — Defines how tables connect to each other (foreign key joins). Without this, Cortex Analyst wouldn't know how to join REVIEWS to MOVIES or USERS. This replaces the `JOIN ... ON` logic you'd write manually in a regular view.
+
+```
+RELATIONSHIPS (
+    reviews_to_movies AS reviews (MOVIE_ID) REFERENCES movies
+)
+```
+
+**FACTS** — Numeric columns that can be measured or aggregated. These are the raw values that metrics are built from. In our case, RATING (1-10 score) and BUDGET_MILLIONS are facts because you can sum, average, or compare them.
+
+```
+FACTS (
+    reviews.rating_value AS RATING  -- a measurable number
+)
+```
+
+**DIMENSIONS** — Descriptive columns used to group, filter, or slice data. Genre, Director, Country, Release Year are all dimensions — they answer "by what?" or "for which?" questions. Dimensions support **SYNONYMS** (alternative names) so that asking "show by category" works the same as "show by genre."
+
+```
+DIMENSIONS (
+    movies.genre AS GENRE WITH SYNONYMS = ('category', 'type')
+)
+```
+
+**METRICS** — Pre-defined aggregation formulas built on top of facts. Instead of every user writing `AVG(RATING)` or `COUNT(REVIEW_ID)`, the semantic view defines these once. Cortex Analyst maps natural language like "average score" to the correct metric automatically.
+
+```
+METRICS (
+    reviews.avg_rating AS AVG(RATING) WITH SYNONYMS = ('average score', 'mean rating')
+)
+```
+
+**COMMENT** — Descriptive text attached to tables, facts, dimensions, and metrics. Comments help Cortex Analyst understand the business context of each element. They also serve as documentation for other developers.
+
+#### How it all fits together
+
+```
+┌─────────────────────────────────────────────────┐
+│              SEMANTIC VIEW                       │
+│                                                  │
+│  TABLES ──── which tables to use                 │
+│  RELATIONSHIPS ──── how they join                │
+│  FACTS ──── raw measurable numbers               │
+│  DIMENSIONS ──── grouping/filtering attributes   │
+│  METRICS ──── pre-built calculations on facts    │
+│  COMMENTS ──── business context for AI & humans  │
+└─────────────────────────────────────────────────┘
+```
+
+When you query a semantic view, you pick METRICS and DIMENSIONS:
+```sql
+SELECT * FROM SEMANTIC_VIEW(
+    SV_MOVIE_ANALYTICS
+    METRICS avg_rating          -- what to calculate
+    DIMENSIONS genre, director  -- how to group it
+);
+```
+The semantic view handles the JOINs, aggregations, and column mapping automatically.
+
+#### Defined Facts
+
+| Fact | Source Column | Description |
+|------|-------------|-------------|
+| rating_value | REVIEWS.RATING | Rating given by user (1-10 scale) |
+| budget | MOVIES.BUDGET_MILLIONS | Production budget in millions USD |
+
+#### Defined Dimensions
+
+| Dimension | Synonyms | Description |
+|-----------|----------|-------------|
+| movies.title | movie name, film | Title of the movie |
+| movies.genre | category, type | Movie genre |
+| movies.director | filmmaker, directed by | Director |
+| movies.release_year | year, released | Release year |
+| users.username | user, reviewer | Reviewer name |
+| users.country | location, region | User country |
+| users.age | — | User age |
+| reviews.review_date | date, when reviewed | Review submission date |
+| reviews.review_text | comment, feedback | Review content |
+
+#### Defined Metrics
+
+| Metric | Expression | Synonyms |
+|--------|-----------|----------|
+| avg_rating | AVG(rating) | average score, mean rating |
+| total_reviews | COUNT(review_id) | review count, number of reviews |
+| highest_rating | MAX(rating) | — |
+| lowest_rating | MIN(rating) | — |
+| avg_budget | AVG(budget) | — |
+
+#### Relationships
+
+```
+REVIEWS.MOVIE_ID → MOVIES.MOVIE_ID
+REVIEWS.USER_ID  → USERS.USER_ID
+```
+
+---
+
+## Demo Queries
+
+### Regular View Queries
+
+```sql
+-- Top rated movies
+SELECT * FROM MOVIE_RATINGS.APP.V_MOVIE_LEADERBOARD ORDER BY AVG_RATING DESC;
+
+-- Most active users
+SELECT * FROM MOVIE_RATINGS.APP.V_USER_ACTIVITY ORDER BY REVIEWS_WRITTEN DESC;
+
+-- All reviews enriched
+SELECT * FROM MOVIE_RATINGS.APP.V_REVIEW_DETAILS ORDER BY REVIEW_DATE DESC;
+```
+
+### Semantic View Queries
+
+```sql
+-- Top movies by average rating and review count
+SELECT * FROM SEMANTIC_VIEW(
+  MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+  METRICS reviews.avg_rating, reviews.total_reviews
+  DIMENSIONS movies.title, movies.genre
+) ORDER BY AVG_RATING DESC;
+
+-- Ratings by country
+SELECT * FROM SEMANTIC_VIEW(
+  MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+  METRICS reviews.avg_rating, reviews.total_reviews
+  DIMENSIONS users.country
+) ORDER BY TOTAL_REVIEWS DESC;
+
+-- Director comparison
+SELECT * FROM SEMANTIC_VIEW(
+  MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+  METRICS reviews.avg_rating, reviews.total_reviews, movies.avg_budget
+  DIMENSIONS movies.director
+) ORDER BY AVG_RATING DESC;
+
+-- Genre breakdown
+SELECT * FROM SEMANTIC_VIEW(
+  MOVIE_RATINGS.APP.SV_MOVIE_ANALYTICS
+  METRICS reviews.avg_rating, reviews.total_reviews
+  DIMENSIONS movies.genre
+) ORDER BY AVG_RATING DESC;
+```
+
+### Cortex Analyst (Natural Language)
+
+With the semantic view, **Cortex Analyst** can answer plain English questions:
+- "What are the top rated movies?"
+- "Which country gives the highest ratings?"
+- "How many reviews does each genre have?"
+- "Show me Christopher Nolan movies by rating"
+
+---
+
+## View vs Semantic View — Key Differences for Students
+
+| Feature | Regular View | Semantic View |
+|---------|-------------|---------------|
+| **What it is** | Saved SQL query | Business meaning layer over tables |
+| **Queried with** | `SELECT * FROM view_name` | `SELECT * FROM SEMANTIC_VIEW(...)` |
+| **Defines** | SQL logic (JOINs, WHERE, GROUP BY) | Facts, Dimensions, Metrics, Relationships |
+| **Synonyms** | No | Yes — enables natural language |
+| **Cortex Analyst** | Cannot use | Can use for text-to-SQL |
+| **Pre-built metrics** | No (you write the AGG yourself) | Yes (AVG, COUNT, etc. defined once) |
+| **Use case** | Simplify complex queries | Enable self-service analytics + AI |

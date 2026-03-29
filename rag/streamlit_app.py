@@ -48,7 +48,7 @@ with st.sidebar:
         "llama3.1-8b", "mixtral-8x7b"
     ])
     st.markdown("---")
-    st.caption("Place your `.txt` files in the same directory as this app. Run `setup.sql` once to create the Snowflake objects.")
+    st.caption("Place your `.txt` files in the same directory as this app. Run `setup.txt` once to create the Snowflake objects.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Helper – chunk text
@@ -69,7 +69,7 @@ def insert_chunks(file_name: str, chunks: list):
     for i, chunk in enumerate(chunks):
         safe_chunk = chunk.replace("'", "''")
         session.sql(
-            f"INSERT INTO PDF_RAG_DB.DATA.DOCS_CHUNKS (FILE_NAME, CHUNK_INDEX, CHUNK) "
+            f"INSERT INTO TXT_RAG_DB.DATA.TXT_CHUNKS (FILE_NAME, CHUNK_INDEX, CHUNK) "
             f"VALUES ('{safe_name}', {i}, '{safe_chunk}')"
         ).collect()
 
@@ -85,7 +85,7 @@ def cortex_search(question: str, limit: int = 5):
     }).replace("'", "''")
     query = f"""
         SELECT SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
-            'PDF_RAG_DB.DATA.PDF_SEARCH_SERVICE',
+            'TXT_RAG_DB.DATA.TXT_SEARCH_SERVICE',
             '{payload}'
         ) AS results
     """
@@ -105,7 +105,7 @@ def cortex_complete(model: str, question: str, context_chunks: list) -> str:
     )
     prompt = (
         "You are a helpful assistant. Use ONLY the context below to answer the question.\n"
-        "If the answer is not in the context, say \"I couldn't find that in the documents.\"\n\n"
+        "If the answer is not in the context, say \"I couldn't find that in the files.\"\n\n"
         f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
     safe_prompt = prompt.replace("'", "''")
@@ -136,7 +136,7 @@ else:
                         insert_chunks(fname, chunks)
                         st.session_state.indexed_files.add(fname)
             st.success("✅ All files indexed!")
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("---")
 
@@ -169,13 +169,13 @@ else:
                     insert_chunks(fname, chunks)
                     st.session_state.indexed_files.add(fname)
                 st.success(f"✅ {fname} indexed!")
-                st.experimental_rerun()
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Chat Window
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("---")
-st.markdown("#### 💬 Ask your documents")
+st.markdown("#### 💬 Ask your files")
 
 chat_container = st.container()
 with chat_container:
@@ -223,9 +223,9 @@ if send_clicked and user_input:
                 if chunks:
                     answer = cortex_complete(model, user_input, chunks)
                 else:
-                    answer = "I couldn't find relevant content in the indexed documents."
+                    answer = "I couldn't find relevant content in the indexed files."
             except Exception as e:
                 answer = f"❌ Error: {e}"
 
     st.session_state.chat_messages.append({"role": "assistant", "content": answer})
-    st.experimental_rerun()
+    st.rerun()

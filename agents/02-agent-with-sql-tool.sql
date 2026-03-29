@@ -8,11 +8,25 @@
 --    ✦ Tool wired into the agent spec
 --    ✦ Orchestration instruction to route data questions to the tool
 --
+--  STANDALONE — run this independently, no Step 1 needed
 --  Run order: execute each section top to bottom
 -- ════════════════════════════════════════════════════════════════════
 
+-- ─────────────────────────────────────────────────────────────────
+--  SETUP — create everything from scratch (independent of Step 1)
+-- ─────────────────────────────────────────────────────────────────
+
+CREATE DATABASE IF NOT EXISTS demo_db;
+CREATE SCHEMA  IF NOT EXISTS demo_db.agents;
+
+CREATE WAREHOUSE IF NOT EXISTS agent_wh
+  WAREHOUSE_SIZE = 'xsmall'
+  AUTO_SUSPEND   = 60
+  AUTO_RESUME    = TRUE;
+
 USE DATABASE demo_db;
 USE SCHEMA   demo_db.agents;
+
 
 
 -- ─────────────────────────────────────────────────────────────────

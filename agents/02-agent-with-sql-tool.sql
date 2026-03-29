@@ -164,20 +164,19 @@ instructions:
     For any question about products, pricing, inventory, stock, categories,
     or regions — call the query_products tool.
     For general questions about Snowflake or AI, answer from your own knowledge.
-
-sample_questions:
-  - question: "Which products are the most expensive?"
-    answer: "I'll query the product catalog and show you the top 5 by price."
-  - question: "Which items are running low on stock?"
-    answer: "Let me check current inventory levels for you."
-  - question: "Give me a breakdown by product category."
-    answer: "I'll group the catalog by category and show counts and averages."
-  - question: "Which regions have the most product value?"
-    answer: "I'll analyse product distribution and total value by region."
+  sample_questions:
+    - question: "Which products are the most expensive?"
+      answer: "I'll query the product catalog and show you the top 5 by price."
+    - question: "Which items are running low on stock?"
+      answer: "Let me check current inventory levels for you."
+    - question: "Give me a breakdown by product category."
+      answer: "I'll group the catalog by category and show counts and averages."
+    - question: "Which regions have the most product value?"
+      answer: "I'll analyse product distribution and total value by region."
 
 tools:
   - tool_spec:
-      type: "user_defined"
+      type: "custom_tool"
       name: "query_products"
       description: >
         Queries the products table in Snowflake. Use this for any question
@@ -195,9 +194,8 @@ tools:
 tool_resources:
   query_products:
     procedure: "demo_db.agents.query_products"
-    warehouse:  "agent_wh"
+    warehouse: "agent_wh"
 $$;
-
 
 -- ─────────────────────────────────────────────────────────────────
 --  SECTION 4 — Call the Agent

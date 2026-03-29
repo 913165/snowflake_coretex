@@ -141,7 +141,7 @@ CALL demo_db.agents.query_products('which regions have the most products');
 -- ─────────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE AGENT demo_db.agents.products_agent
-  COMMENT = 'Step 2 — Agent with a custom SQL tool for product data'
+  COMMENT = 'Agent with a custom SQL tool for product data'
 FROM SPECIFICATION $$
 models:
   orchestration: claude-4-sonnet
@@ -164,19 +164,10 @@ instructions:
     For any question about products, pricing, inventory, stock, categories,
     or regions — call the query_products tool.
     For general questions about Snowflake or AI, answer from your own knowledge.
-  sample_questions:
-    - question: "Which products are the most expensive?"
-      answer: "I'll query the product catalog and show you the top 5 by price."
-    - question: "Which items are running low on stock?"
-      answer: "Let me check current inventory levels for you."
-    - question: "Give me a breakdown by product category."
-      answer: "I'll group the catalog by category and show counts and averages."
-    - question: "Which regions have the most product value?"
-      answer: "I'll analyse product distribution and total value by region."
 
 tools:
   - tool_spec:
-      type: "custom_tool"
+      type: "generic"
       name: "query_products"
       description: >
         Queries the products table in Snowflake. Use this for any question
@@ -193,9 +184,13 @@ tools:
 
 tool_resources:
   query_products:
-    procedure: "demo_db.agents.query_products"
-    warehouse: "agent_wh"
+    type: "procedure"
+    identifier: "demo_db.agents.query_products"
+    execution_environment:
+      type: "warehouse"
+      warehouse: "AGENT_WH"
 $$;
+
 
 -- ─────────────────────────────────────────────────────────────────
 --  SECTION 4 — Call the Agent
@@ -204,28 +199,28 @@ $$;
 -- general question (agent answers from LLM, no tool call)
 SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'demo_db.agents.products_agent',
-  PARSE_JSON('{"messages": [{"role": "user", "content": "What is Snowflake Cortex?"}]}')
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "What is Snowflake Cortex?"}]}]}$$
 ) AS response;
 
 -- data questions (tool will be called automatically)
 SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'demo_db.agents.products_agent',
-  PARSE_JSON('{"messages": [{"role": "user", "content": "Which products are the most expensive?"}]}')
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which products are the most expensive?"}]}]}$$
 ) AS response;
 
 SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'demo_db.agents.products_agent',
-  PARSE_JSON('{"messages": [{"role": "user", "content": "Which items are running low on stock?"}]}')
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which items are running low on stock?"}]}]}$$
 ) AS response;
 
 SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'demo_db.agents.products_agent',
-  PARSE_JSON('{"messages": [{"role": "user", "content": "Give me a breakdown by product category."}]}')
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Give me a breakdown by product category."}]}]}$$
 ) AS response;
 
 SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'demo_db.agents.products_agent',
-  PARSE_JSON('{"messages": [{"role": "user", "content": "Which regions have the most product value?"}]}')
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which regions have the most product value?"}]}]}$$
 ) AS response;
 
 
@@ -234,11 +229,11 @@ SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
 -- ─────────────────────────────────────────────────────────────────
 
 SELECT
-  response:choices[0]:messages[0]:content::STRING AS answer
+  PARSE_JSON(response):content[3]:text::STRING AS answer
 FROM (
   SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
     'demo_db.agents.products_agent',
-    PARSE_JSON('{"messages": [{"role": "user", "content": "Which items are running low on stock?"}]}')
+    $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which items are running low on stock?"}]}]}$$
   ) AS response
 );
 

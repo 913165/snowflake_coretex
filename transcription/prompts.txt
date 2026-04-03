@@ -1,0 +1,20 @@
+create db analytics_db
+where can i store audio mp3 files for transcribe
+how can i see staging area
+SHOW STAGES IN ANALYTICS_DB.PUBLIC;
+please put audio files from my workspace to @ANALYTICS_DB.PUBLIC.AUDIO_STAGE
+please transcribe audio_stage/audios/audios/call_center_audio_001.mp3 and also detect speakers and keep files of interaction to json for further classification
+SELECT * FROM ANALYTICS_DB.PUBLIC.CALL_QUALITY_SUMMARY
+Extract sentiment and intent from each speaker segment in CALL_TRANSCRIPTIONS for quality scoring
+please give me who are speakers
+please give me full transcripts
+SELECT CASE speaker WHEN 'SPEAKER_01' THEN 'Georgina (Agent)' ELSE 'Brian (Customer)' END AS speaker, start_time, end_time, text, sentiment, intent FROM ANALYTICS_DB.PUBLIC.CALL_QUALITY_SCORES ORDER BY start_time
+please list of all of my above prompts so that i can save somewhere
+Objects created during this session:
+
+ANALYTICS_DB — database
+ANALYTICS_DB.PUBLIC.AUDIO_STAGE — internal stage (SSE encryption)
+ANALYTICS_DB.PUBLIC.CALL_TRANSCRIPTIONS — transcription JSON table
+ANALYTICS_DB.PUBLIC.CALL_QUALITY_SCORES — segment-level sentiment & intent table
+ANALYTICS_DB.PUBLIC.CALL_QUALITY_SUMMARY — call-level quality score view
+/audio_transcription_workflow.sql — full reproducible SQL workflow

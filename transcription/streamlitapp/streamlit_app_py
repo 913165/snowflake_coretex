@@ -6,15 +6,8 @@ import io
 from datetime import date
 from collections import Counter
 from typing import List
+import random
 
-try:
-    from wordcloud import WordCloud
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    HAS_WORDCLOUD = True
-except ImportError:
-    HAS_WORDCLOUD = False
 
 from snowflake.snowpark.context import get_active_session
 
@@ -28,7 +21,7 @@ if "results" not in st.session_state:
 
 session = get_active_session()
 
-st.set_page_config(page_title="Call Center Analysis", layout="wide")
+st.set_page_config(page_title="Call Center AnalysisV2", layout="wide")
 
 st.markdown("""
 <style>
@@ -242,7 +235,7 @@ with st.sidebar:
     st.metric("Average overall score", f"{avg_overall}")
 
 
-st.markdown("## Snowflake Cortex Audio Analysis")
+st.markdown("## Snowflake Cortex Audio Analysis v2")
 st.caption("Call Center Batch Pipeline — AI_TRANSCRIBE + AI_COMPLETE")
 
 st.markdown('<div class="hero">', unsafe_allow_html=True)
@@ -458,19 +451,18 @@ if results:
         for item in results:
             all_phrases.extend(item["analysis"].get("key_phrases", []))
 
-        if all_phrases and HAS_WORDCLOUD:
-            wc = WordCloud(width=1200, height=400, background_color="#050912", colormap="viridis").generate(
-                " ".join(all_phrases)
-            )
-            fig, ax = plt.subplots(figsize=(12, 4))
-            ax.imshow(wc, interpolation="bilinear")
-            ax.axis("off")
-            st.image(fig_to_bytes(fig), use_container_width=True)
-            plt.close(fig)
-        elif not all_phrases:
-            st.info("No key phrases yet.")
+        if all_phrases:
+            phrase_counts = Counter(all_phrases)
+            max_count = max(phrase_counts.values())
+            colors = ["#1dd7a2", "#43f0c8", "#21c7ff", "#9c74ff", "#f0cb4a", "#ff5f77", "#ff7d93", "#6f89a8"]
+            tags_html = ""
+            for phrase, count in phrase_counts.items():
+                size = 0.85 + (count / max_count) * 1.5
+                color = random.choice(colors)
+                tags_html += f'<span style="display:inline-block;margin:4px 8px;padding:6px 14px;background:{color}22;color:{color};border:1px solid {color}44;border-radius:20px;font-size:{size}rem;font-weight:600;">{html.escape(phrase)}</span>'
+            st.markdown(f'<div style="text-align:center;padding:20px 0;">{tags_html}</div>', unsafe_allow_html=True)
         else:
-            st.info("WordCloud not available. Key phrases listed below.")
+            st.info("No key phrases yet.")
 
         st.markdown("#### Per-file key phrases")
         for item in results:

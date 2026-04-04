@@ -1,0 +1,492 @@
+import streamlit as st
+import pandas as pd
+import json
+import html
+import io
+from datetime import date
+from collections import Counter
+from typing import List
+
+try:
+    from wordcloud import WordCloud
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_WORDCLOUD = True
+except ImportError:
+    HAS_WORDCLOUD = False
+
+from snowflake.snowpark.context import get_active_session
+
+SUPPORTED_TYPES = ["wav", "mp3", "mp4", "flac", "ogg", "webm"]
+TOPICS = ["Tech Support", "Billing", "Sales", "Complaint", "Refund", "Escalation"]
+STAGE = "@CALL_CENTER_DB.PUBLIC.CALL_RECORDINGS"
+LLM_MODEL = "llama3.1-70b"
+
+if "results" not in st.session_state:
+    st.session_state["results"] = []
+
+session = get_active_session()
+
+st.set_page_config(page_title="Call Center Analysis", layout="wide")
+
+st.markdown("""
+<style>
+body { background: #050912; color: #e1e4ea; }
+.hero { padding: 1.5rem 0; }
+.badge { background: #162236; color: #43f0c8; padding: 4px 14px; border-radius: 12px; font-size: .82rem; }
+.sentiment-card { background: #0c1322; border-radius: 12px; padding: 18px; margin-bottom: 14px; border-top: 3px solid #1dd7a2; }
+.sentiment-file { font-weight: 600; font-size: .95rem; margin-bottom: 6px; }
+.sentiment-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
+.score-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .82rem; }
+.score-row span:first-child { width: 120px; color: #8a93a6; }
+.score-track { flex: 1; height: 6px; background: #1a2236; border-radius: 3px; }
+.score-fill { height: 100%; background: linear-gradient(90deg,#1dd7a2,#43f0c8); border-radius: 3px; }
+.score-value { width: 28px; text-align: right; color: #e1e4ea; font-weight: 600; }
+.topic-row { background: #0c1322; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
+.topic-row-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.topic-file { font-weight: 600; min-width: 180px; }
+.topic-pill { border: 1px solid; border-radius: 20px; padding: 2px 12px; font-size: .8rem; font-weight: 600; }
+.topic-snippet { flex: 1; color: #8a93a6; font-size: .82rem; min-width: 200px; }
+.topic-confidence { font-weight: 700; color: #43f0c8; }
+.turn-agent { color: #43f0c8; }
+.turn-customer { color: #f8e86f; }
+.breakdown-panel { background: #0c1322; border-radius: 10px; padding: 14px; }
+.breakdown-title { font-weight: 700; margin-bottom: 10px; }
+.break-row { margin-bottom: 6px; }
+.break-label { font-size: .78rem; color: #8a93a6; margin-bottom: 2px; }
+.break-track { height: 5px; background: #1a2236; border-radius: 3px; }
+.break-fill { height: 100%; border-radius: 3px; }
+</style>
+""", unsafe_allow_html=True)
+
+
+def format_duration(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m {s:02d}s"
+
+
+def estimate_duration_seconds(file_size_bytes: int) -> float:
+    return file_size_bytes / 32000
+
+
+def format_size_mb(size_bytes: int) -> str:
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def fig_to_bytes(fig) -> bytes:
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", transparent=True, dpi=150)
+    buf.seek(0)
+    return buf.read()
+
+
+def _timestamp(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+
+def _upload_to_stage(uploaded_file) -> str:
+    import tempfile, os
+    with tempfile.TemporaryDirectory() as tmpdir:
+        local_path = os.path.join(tmpdir, uploaded_file.name)
+        with open(local_path, "wb") as f:
+            f.write(uploaded_file.getvalue())
+        session.sql(f"PUT 'file://{local_path}' {STAGE} AUTO_COMPRESS=FALSE OVERWRITE=TRUE").collect()
+    return uploaded_file.name
+
+
+def _transcribe(filename: str) -> dict:
+    sql = f"""
+    SELECT AI_TRANSCRIBE(
+        TO_FILE('{STAGE}', '{filename}'),
+        {{'timestamp_granularity': 'speaker'}}
+    ) AS result
+    """
+    row = session.sql(sql).collect()[0]
+    raw = row["RESULT"]
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {"text": raw, "segments": []}
+    elif isinstance(raw, dict):
+        return raw
+    return {"text": str(raw), "segments": []}
+    
+
+def _analyze_transcript(transcript_text: str) -> dict:
+    prompt = f"""Analyze this call center transcript and return a JSON object with these exact keys:
+- "sentiment": one of "positive", "negative", "mixed"
+- "topic": one of "Tech Support", "Billing", "Sales", "Complaint", "Refund", "Escalation"
+- "topic_confidence": a float between 0 and 1
+- "outcome": one of "resolved", "callback", "escalated", "unresolved"
+- "professionalism_score": integer 0-100
+- "empathy_score": integer 0-100
+- "resolution_score": integer 0-100
+- "key_phrases": list of 3-6 key phrases from the call
+- "agent_assessment": a 1-2 sentence assessment of the agent's performance
+
+Transcript:
+{transcript_text[:8000]}
+
+Return ONLY valid JSON, no other text."""
+
+    escaped_prompt = prompt.replace("'", "''")
+    sql = f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{LLM_MODEL}', '{escaped_prompt}') AS result"
+    row = session.sql(sql).collect()[0]
+    raw = row["RESULT"]
+
+    if isinstance(raw, dict):
+        text = raw.get("choices", [{}])[0].get("messages", raw.get("message", ""))
+        if isinstance(text, str):
+            raw = text
+        else:
+            raw = json.dumps(raw)
+    
+    if not isinstance(raw, str):
+        raw = str(raw)
+
+    try:
+        start_idx = raw.find("{")
+        end_idx = raw.rfind("}") + 1
+        if start_idx >= 0 and end_idx > start_idx:
+            return json.loads(raw[start_idx:end_idx])
+    except json.JSONDecodeError:
+        pass
+
+    return {
+        "sentiment": "mixed",
+        "topic": "Complaint",
+        "topic_confidence": 0.5,
+        "outcome": "unresolved",
+        "professionalism_score": 50,
+        "empathy_score": 50,
+        "resolution_score": 50,
+        "key_phrases": [],
+        "agent_assessment": "Unable to parse analysis.",
+    }
+
+
+def _process_file(uploaded_file) -> dict:
+    filename = _upload_to_stage(uploaded_file)
+    transcription = _transcribe(filename)
+
+    transcript_text = transcription.get("text", "")
+    segments = transcription.get("segments", [])
+    turns = []
+    for seg in segments:
+        label = seg.get("speaker_label", "SPEAKER_00")
+        speaker = "Agent" if label == "SPEAKER_00" else "Customer"
+        turns.append({
+            "speaker": speaker,
+            "text": seg.get("text", ""),
+            "start": seg.get("start", 0),
+            "end": seg.get("end", 0),
+        })
+
+    analysis = _analyze_transcript(transcript_text)
+    avg = round(
+        (int(analysis.get("professionalism_score", 0))
+         + int(analysis.get("empathy_score", 0))
+         + int(analysis.get("resolution_score", 0))) / 3, 1
+    )
+
+    return {
+        "filename": filename,
+        "transcript": transcript_text,
+        "turns": turns,
+        "analysis": analysis,
+        "avg_score": avg,
+    }
+
+
+def _badge_color(outcome: str) -> str:
+    mapping = {
+        "resolved": "#00d2a0",
+        "callback": "#ffb020",
+        "escalated": "#b780ff",
+        "unresolved": "#ff4d5e",
+    }
+    return mapping.get(outcome, "#6c7685")
+
+
+def _topic_color(topic: str) -> str:
+    topic_colors = {
+        "Tech Support": "#21c7ff",
+        "Billing": "#ff5f77",
+        "Sales": "#1dde99",
+        "Complaint": "#ff7d93",
+        "Refund": "#f0cb4a",
+        "Escalation": "#9c74ff",
+    }
+    return topic_colors.get(topic, "#6f89a8")
+
+
+with st.sidebar:
+    st.header("Settings")
+    st.caption(f"Using Snowflake Cortex AI ({LLM_MODEL})")
+
+    all_topics = ["All"] + TOPICS
+    selected_topic = st.selectbox("Filter by department/topic", all_topics)
+
+    results_all = st.session_state["results"]
+    avg_overall = round(sum(r.get("avg_score", 0) for r in results_all) / max(len(results_all), 1), 1)
+    resolved_count = sum(1 for r in results_all if r["analysis"].get("outcome") == "resolved")
+    escalated_count = sum(1 for r in results_all if r["analysis"].get("outcome") == "escalated")
+
+    st.markdown("---")
+    st.metric("Total files processed", len(results_all))
+    st.metric("Resolved", resolved_count)
+    st.metric("Escalated", escalated_count)
+    st.metric("Average overall score", f"{avg_overall}")
+
+
+st.markdown("## Snowflake Cortex Audio Analysis")
+st.caption("Call Center Batch Pipeline — AI_TRANSCRIBE + AI_COMPLETE")
+
+st.markdown('<div class="hero">', unsafe_allow_html=True)
+uploaded_files = st.file_uploader(
+    "Browse call recordings",
+    type=SUPPORTED_TYPES,
+    accept_multiple_files=True,
+)
+
+if uploaded_files:
+    st.markdown(f"<span class='badge'>{len(uploaded_files)} files ready</span>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+if uploaded_files:
+    table_rows = []
+    total_size = 0
+    for f in uploaded_files:
+        fsize = len(f.getvalue())
+        total_size += fsize
+        table_rows.append({
+            "Recording file": f.name,
+            "Estimated duration": format_duration(estimate_duration_seconds(fsize)),
+            "Size": format_size_mb(fsize),
+            "Date": str(date.today()),
+            "Status": "Ready",
+        })
+
+    c1, c2, c3 = st.columns([1, 1, 2])
+    c1.metric("Recordings", len(uploaded_files))
+    c2.metric("Size", format_size_mb(total_size))
+    c3.caption("Cortex AI_TRANSCRIBE + AI_COMPLETE analysis")
+    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+run_batch = st.button("Run Cortex Batch", type="primary", use_container_width=True)
+if run_batch:
+    if not uploaded_files:
+        st.error("Please upload at least one audio file.")
+    else:
+        progress = st.progress(0)
+        status = st.empty()
+        new_results = []
+
+        for idx, uploaded_file in enumerate(uploaded_files, start=1):
+            status.info(f"Processing {uploaded_file.name} ({idx}/{len(uploaded_files)})")
+            with st.spinner(f"Analyzing {uploaded_file.name}..."):
+                try:
+                    result = _process_file(uploaded_file)
+                    new_results.append(result)
+                except Exception as exc:
+                    st.error(f"{uploaded_file.name}: {exc}")
+            progress.progress(idx / len(uploaded_files))
+
+        merged = {r["filename"]: r for r in st.session_state["results"]}
+        for item in new_results:
+            merged[item["filename"]] = item
+        st.session_state["results"] = list(merged.values())
+        status.success("Batch completed.")
+
+
+results = st.session_state["results"]
+if selected_topic != "All":
+    results = [r for r in results if r["analysis"].get("topic") == selected_topic]
+
+if results:
+    st.markdown("---")
+    st.subheader("Analysis Results")
+
+    outcome_counts = Counter(r["analysis"].get("outcome", "unresolved") for r in results)
+    oc1, oc2, oc3, oc4 = st.columns(4)
+    oc1.metric("Resolved", outcome_counts.get("resolved", 0))
+    oc2.metric("Callback", outcome_counts.get("callback", 0))
+    oc3.metric("Escalated", outcome_counts.get("escalated", 0))
+    oc4.metric("Unresolved", outcome_counts.get("unresolved", 0))
+
+    t1, t2, t3, t4, t5, t6 = st.tabs([
+        "😊 Sentiment",
+        "🏷️ Topic Classification",
+        "🎭 Speaker Diarization",
+        "🧑‍💼 Agent Performance",
+        "💬 Key Phrases",
+        "📄 Transcripts",
+    ])
+
+    with t1:
+        sentiment_ui = {
+            "positive": {"emoji": "😊", "label": "Positive", "color": "#1dd7a2", "border": "#1dd7a2"},
+            "negative": {"emoji": "😟", "label": "Negative", "color": "#ff5b63", "border": "#ff5b63"},
+            "mixed": {"emoji": "😐", "label": "Mixed", "color": "#f3c343", "border": "#f3c343"},
+        }
+
+        for start in range(0, len(results), 2):
+            row_items = results[start : start + 2]
+            columns = st.columns(2)
+            for idx, item in enumerate(row_items):
+                a = item["analysis"]
+                sentiment = a["sentiment"]
+                ui = sentiment_ui.get(sentiment, sentiment_ui["mixed"])
+
+                pro = int(a["professionalism_score"])
+                emp = int(a["empathy_score"])
+                res = int(a["resolution_score"])
+
+                with columns[idx]:
+                    st.markdown(f"""
+<div class="sentiment-card" style="border-top-color:{ui['border']};">
+  <div class="sentiment-file">{item['filename']}</div>
+  <div class="sentiment-label" style="color:{ui['color']};">{ui['emoji']} {ui['label']}</div>
+  <div class="score-row">
+    <span>Professionalism</span>
+    <div class="score-track"><div class="score-fill" style="width:{pro}%;"></div></div>
+    <span class="score-value">{pro}</span>
+  </div>
+  <div class="score-row">
+    <span>Empathy</span>
+    <div class="score-track"><div class="score-fill" style="width:{emp}%;"></div></div>
+    <span class="score-value">{emp}</span>
+  </div>
+  <div class="score-row">
+    <span>Resolution</span>
+    <div class="score-track"><div class="score-fill" style="width:{res}%;"></div></div>
+    <span class="score-value">{res}</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+            st.markdown("---")
+
+    with t2:
+        left_col, right_col = st.columns([5, 1])
+
+        with left_col:
+            for item in results:
+                topic = str(item["analysis"].get("topic", "Complaint"))
+                confidence = float(item["analysis"].get("topic_confidence", 0.75))
+                confidence_pct = max(0, min(100, int(round(confidence * 100))))
+                snippet_raw = item.get("transcript", "")
+                snippet = snippet_raw[:95] + ("..." if len(snippet_raw) > 95 else "")
+                topic_color = _topic_color(topic)
+
+                st.markdown(f"""
+<div class="topic-row">
+  <div class="topic-row-main">
+    <div class="topic-file">{html.escape(item['filename'])}</div>
+    <span class="topic-pill" style="color:{topic_color}; border-color:{topic_color}55; background:{topic_color}1A;">{html.escape(topic)}</span>
+    <div class="topic-snippet">{html.escape(snippet) if snippet else 'No transcript snippet available.'}</div>
+    <div class="topic-confidence">{confidence_pct}%</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        with right_col:
+            topic_counts = Counter(str(item["analysis"].get("topic", "Complaint")) for item in results)
+            total = max(1, sum(topic_counts.values()))
+
+            st.markdown('<div class="breakdown-panel">', unsafe_allow_html=True)
+            st.markdown('<div class="breakdown-title">Topic Breakdown</div>', unsafe_allow_html=True)
+
+            for topic in TOPICS:
+                count = topic_counts.get(topic, 0)
+                pct = int(round((count / total) * 100))
+                color = _topic_color(topic)
+                st.markdown(f"""
+<div class="break-row">
+  <div class="break-label">{html.escape(topic)}</div>
+  <div class="break-track"><div class="break-fill" style="width:{pct}%; background:{color};"></div></div>
+</div>
+""", unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with t3:
+        for item in results:
+            st.markdown(f"**{item['filename']}**")
+            if not item["turns"]:
+                st.info("No segments available.")
+                continue
+            for turn in item["turns"]:
+                speaker = turn["speaker"]
+                css_class = "turn-agent" if speaker == "Agent" else "turn-customer"
+                st.markdown(
+                    f"<span class='{css_class}'><strong>{speaker}</strong> [{_timestamp(turn['start'])}]</span>: {turn['text']}",
+                    unsafe_allow_html=True,
+                )
+            st.markdown("---")
+
+    with t4:
+        perf_rows = []
+        for item in results:
+            a = item["analysis"]
+            perf_rows.append({
+                "File": item["filename"],
+                "Agent": item["filename"],
+                "Professionalism": a["professionalism_score"],
+                "Empathy": a["empathy_score"],
+                "Resolution": a["resolution_score"],
+                "Average Score": item["avg_score"],
+                "Outcome": a["outcome"],
+                "Cortex Assessment": a["agent_assessment"],
+            })
+
+        df = pd.DataFrame(perf_rows)
+
+        def avg_style(v: float) -> str:
+            if v >= 85:
+                return "background-color: #143a2f; color: #9ef3cf;"
+            if v >= 70:
+                return "background-color: #3d3214; color: #ffe291;"
+            return "background-color: #421d22; color: #ffadad;"
+
+        st.dataframe(df.style.map(avg_style, subset=["Average Score"]), use_container_width=True, hide_index=True)
+
+    with t5:
+        all_phrases: List[str] = []
+        for item in results:
+            all_phrases.extend(item["analysis"].get("key_phrases", []))
+
+        if all_phrases and HAS_WORDCLOUD:
+            wc = WordCloud(width=1200, height=400, background_color="#050912", colormap="viridis").generate(
+                " ".join(all_phrases)
+            )
+            fig, ax = plt.subplots(figsize=(12, 4))
+            ax.imshow(wc, interpolation="bilinear")
+            ax.axis("off")
+            st.image(fig_to_bytes(fig), use_container_width=True)
+            plt.close(fig)
+        elif not all_phrases:
+            st.info("No key phrases yet.")
+        else:
+            st.info("WordCloud not available. Key phrases listed below.")
+
+        st.markdown("#### Per-file key phrases")
+        for item in results:
+            st.write(f"**{item['filename']}**: {', '.join(item['analysis'].get('key_phrases', []))}")
+
+    with t6:
+        picked = st.selectbox("Select a file", [r["filename"] for r in results])
+        selected = next((r for r in results if r["filename"] == picked), None)
+        if selected:
+            for turn in selected["turns"]:
+                color = "#43f0c8" if turn["speaker"] == "Agent" else "#f8e86f"
+                st.markdown(
+                    f"<p><span style='color:{color};font-weight:700'>{turn['speaker']} [{_timestamp(turn['start'])}]</span><br>{turn['text']}</p>",
+                    unsafe_allow_html=True,
+                )
+            if not selected["turns"]:
+                st.write(selected["transcript"])
+else:
+    st.info("No processed results yet. Upload files and click 'Run Cortex Batch'.")
